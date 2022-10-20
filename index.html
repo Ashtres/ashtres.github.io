@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html>
+<body>
+<pre>&quot;use strict&quot;;
+var __awaiter = (this &amp;&amp; this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator[&quot;throw&quot;](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var _a, _b;
+// @ts-ignore
+const BUILD_TIME = &quot;2022/10/16 13:04:42&quot;;
+const RUN_INTERVAL = 10000;
+const GID_NAME_MAP = {
+    &quot;-1&quot;: &quot;Unknown&quot;,
+    &quot;1&quot;: &quot;Woodcutter&quot;,
+    &quot;2&quot;: &quot;Clay Pit&quot;,
+    &quot;3&quot;: &quot;Iron Mine&quot;,
+    &quot;4&quot;: &quot;Cropland&quot;,
+    &quot;5&quot;: &quot;Sawmill&quot;,
+    &quot;6&quot;: &quot;Brickyard&quot;,
+    &quot;7&quot;: &quot;Iron Foundry&quot;,
+    &quot;8&quot;: &quot;Grain Mill&quot;,
+    &quot;9&quot;: &quot;Bakery&quot;,
+    &quot;10&quot;: &quot;Warehouse&quot;,
+    &quot;11&quot;: &quot;Granary&quot;,
+    &quot;13&quot;: &quot;Smithy&quot;,
+    &quot;14&quot;: &quot;Tournament Square&quot;,
+    &quot;15&quot;: &quot;Main Building&quot;,
+    &quot;16&quot;: &quot;Rally Point&quot;,
+    &quot;17&quot;: &quot;Marketplace&quot;,
+    &quot;18&quot;: &quot;Embassy&quot;,
+    &quot;19&quot;: &quot;Barracks&quot;,
+    &quot;21&quot;: &quot;Workshop&quot;,
+    &quot;23&quot;: &quot;Cranny&quot;,
+    &quot;24&quot;: &quot;Town Hall&quot;,
+    &quot;25&quot;: &quot;Residence&quot;,
+    &quot;26&quot;: &quot;Palace&quot;,
+    &quot;27&quot;: &quot;Treasury&quot;,
+    &quot;28&quot;: &quot;Trade Office&quot;,
+    &quot;29&quot;: &quot;Great Barracks&quot;,
+    &quot;31&quot;: &quot;City Wall&quot;,
+    &quot;32&quot;: &quot;Earth Wall&quot;,
+    &quot;33&quot;: &quot;Palisade&quot;,
+    &quot;34&quot;: &quot;Stonemason&apos;s Lodge&quot;,
+    &quot;35&quot;: &quot;Brewery&quot;,
+    &quot;36&quot;: &quot;Trapper&quot;,
+    &quot;37&quot;: &quot;Hero&apos;s Mansion&quot;,
+    &quot;38&quot;: &quot;Great Warehouse&quot;,
+    &quot;39&quot;: &quot;Great Granary&quot;,
+    &quot;41&quot;: &quot;Horse Drinking Trough&quot;,
+    &quot;42&quot;: &quot;Stone Wall&quot;,
+    &quot;43&quot;: &quot;Makeshift Wall&quot;,
+    &quot;44&quot;: &quot;Command Center&quot;,
+    &quot;45&quot;: &quot;Waterworks&quot;,
+    &quot;20&quot;: &quot;Stable&quot;,
+    &quot;22&quot;: &quot;Academy&quot;,
+    &quot;30&quot;: &quot;Great Stable&quot;,
+    &quot;40&quot;: &quot;Wonder of the World&quot;,
+    &quot;46&quot;: &quot;Hospital&quot;
+};
+var CurrentPageEnum;
+(function (CurrentPageEnum) {
+    CurrentPageEnum[&quot;LOGIN&quot;] = &quot;LOGIN&quot;;
+    CurrentPageEnum[&quot;FIELDS&quot;] = &quot;FIELDS&quot;;
+    CurrentPageEnum[&quot;TOWN&quot;] = &quot;TOWN&quot;;
+    CurrentPageEnum[&quot;BUILDING&quot;] = &quot;BUILDING&quot;;
+    CurrentPageEnum[&quot;REPORT&quot;] = &quot;REPORT&quot;;
+    CurrentPageEnum[&quot;UNKNOWN&quot;] = &quot;UNKNOWN&quot;;
+})(CurrentPageEnum || (CurrentPageEnum = {}));
+var CurrentActionEnum;
+(function (CurrentActionEnum) {
+    CurrentActionEnum[&quot;IDLE&quot;] = &quot;IDLE&quot;;
+    CurrentActionEnum[&quot;BUILD&quot;] = &quot;BUILD&quot;;
+    CurrentActionEnum[&quot;NAVIGATE_TO_FIELDS&quot;] = &quot;NAVIGATE_TO_FIELDS&quot;;
+    CurrentActionEnum[&quot;SCOUT&quot;] = &quot;SCOUT&quot;;
+    CurrentActionEnum[&quot;FARM&quot;] = &quot;FARM&quot;;
+    CurrentActionEnum[&quot;CUSTOM_FARM&quot;] = &quot;CUSTOM_FARM&quot;;
+})(CurrentActionEnum || (CurrentActionEnum = {}));
+class StateHandler {
+    constructor() {
+        this.parseState = (prop) =&gt; {
+            let item = localStorage.getItem(prop);
+            if (item === null)
+                return StateHandler.INITIAL_STATE[prop];
+            else
+                return JSON.parse(item);
+        };
+        this.get = (obj, prop) =&gt; {
+            return this.state[prop];
+        };
+        this.set = (obj, prop, value) =&gt; {
+            localStorage.setItem(prop, JSON.stringify(value));
+            //@ts-ignore
+            this.state[prop] = value;
+            this.callback &amp;&amp; this.callback();
+            return true;
+        };
+        this.setCallback = (callback) =&gt; {
+            this.callback = callback;
+        };
+        this.state = Object.fromEntries(Object.keys(StateHandler.INITIAL_STATE)
+            .map(k =&gt; [k, this.parseState(k)]));
+    }
+}
+StateHandler.INITIAL_STATE = {
+    currentAction: CurrentActionEnum.IDLE,
+    currentPage: CurrentPageEnum.LOGIN,
+    currentVillageId: &apos;&apos;,
+    villages: {},
+    feature: {
+        autoLogin: false,
+        autoScan: false,
+        autoBuild: false,
+        alertAttack: false,
+        alertEmptyBuildQueue: false,
+        alertResourceCapacityFull: false,
+        autoScout: false,
+        autoFarm: false,
+        autoCustomFarm: false,
+        debug: false
+    },
+    nextVillageRotationTime: new Date(),
+    nextScoutTime: new Date(),
+    nextFarmTime: new Date(),
+    alertedPlusIncomingAttack: false,
+    telegramChatId: &apos;&apos;,
+    telegramToken: &apos;&apos;,
+    username: &apos;&apos;,
+    password: &apos;&apos;
+};
+class Utils {
+}
+_a = Utils;
+Utils.parseIntIgnoreNonNumeric = (text) =&gt; {
+    return parseInt(text.replace(/[^0-9]/g, &apos;&apos;));
+};
+Utils.randInt = (x, y) =&gt; {
+    return Math.floor(Math.random() * (y - x + 1) + x);
+};
+Utils.sleep = (ms) =&gt; {
+    return new Promise(resolve =&gt; setTimeout(resolve, ms));
+};
+Utils.delayClick = () =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    yield Utils.sleep(Utils.randInt(1000, 5000));
+});
+Utils.addToDate = (date, hour, minute, second) =&gt; {
+    return new Date(date.getTime() + hour * 60 * 60 * 1000 + minute * 60 * 1000 + second * 1000);
+};
+Utils.leftPadZero = (value, length) =&gt; {
+    return String(value).padStart(length, &apos;0&apos;);
+};
+Utils.formatDate = (dateInput) =&gt; {
+    if (!dateInput) {
+        return &apos;N/A&apos;;
+    }
+    const date = new Date(dateInput);
+    return `${date.getFullYear()}/${Utils.leftPadZero(date.getMonth() + 1, 2)}/${Utils.leftPadZero(date.getDate(), 2)} ${Utils.leftPadZero(date.getHours(), 2)}:${Utils.leftPadZero(date.getMinutes(), 2)}:${Utils.leftPadZero(date.getSeconds(), 2)}`;
+};
+Utils.isSufficientResources = (required, own) =&gt; {
+    return required.lumber &lt;= own.lumber &amp;&amp; required.clay &lt;= own.clay &amp;&amp; required.iron &lt;= own.iron &amp;&amp; required.crop &lt;= own.crop;
+};
+class Navigation {
+}
+_b = Navigation;
+Navigation.goToVillage = (state, id, action) =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    yield Utils.delayClick();
+    state.currentAction = action;
+    state.feature.debug &amp;&amp; console.log(`Go to village - [${id}]${state.villages[id].name}`);
+    $(`.listEntry[data-did=&quot;${id}&quot;] &gt; a`)[0].click();
+    return true;
+});
+Navigation.goToBuilding = (state, aid, gid, action) =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    if (aid &lt;= 18 &amp;&amp; state.currentPage === CurrentPageEnum.FIELDS) {
+        yield Utils.delayClick();
+        state.currentAction = action;
+        state.feature.debug &amp;&amp; console.log(`Go to building - [aid=${aid},gid=${gid}]${GID_NAME_MAP[gid]}`);
+        $(`a[href=&quot;/build.php?id=${aid}&quot;]`)[0].click();
+        return true;
+    }
+    else if (aid &gt; 18 &amp;&amp; state.currentPage === CurrentPageEnum.TOWN) {
+        yield Utils.delayClick();
+        state.currentAction = action;
+        state.feature.debug &amp;&amp; console.log(`Go to building - [aid=${aid},gid=${gid}]${GID_NAME_MAP[gid]}`);
+        if (aid === 40) { // Special case for wall
+            $(&apos;#villageContent &gt; div.buildingSlot.a40.top &gt; svg &gt; g.hoverShape &gt; path&apos;).trigger(&apos;click&apos;);
+        }
+        else {
+            $(`a[href=&quot;/build.php?id=${aid}&amp;gid=${gid}&quot;]`)[0].click();
+        }
+        return true;
+    }
+    else {
+        state.feature.debug &amp;&amp; console.log(`Cannot go to building - [aid=${aid},gid=${gid}]${GID_NAME_MAP[gid]}`);
+        return false;
+    }
+});
+Navigation.goToFields = (state, action) =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    yield Utils.delayClick();
+    state.currentAction = action;
+    state.feature.debug &amp;&amp; console.log(&apos;Go to fields&apos;);
+    $(&apos;.village.resourceView&apos;)[0].click();
+    return true;
+});
+Navigation.goToTown = (state, action) =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    yield Utils.delayClick();
+    state.currentAction = action;
+    state.feature.debug &amp;&amp; console.log(&apos;Go to town&apos;);
+    $(&apos;.village.buildingView&apos;)[0].click();
+    return true;
+});
+var TroopMovementType;
+(function (TroopMovementType) {
+    TroopMovementType[&quot;REINFORCE&quot;] = &quot;REINFORCE&quot;;
+    TroopMovementType[&quot;ATTACK&quot;] = &quot;ATTACK&quot;;
+    TroopMovementType[&quot;ADVENTURE&quot;] = &quot;ADVENTURE&quot;;
+})(TroopMovementType || (TroopMovementType = {}));
+const createStyle = () =&gt; {
+    const style = document.createElement(&apos;style&apos;);
+    style.textContent = `
+        #console {
+            background: white; 
+            margin: 0 20px; 
+            border-radius: 10px; 
+            padding: 5px; 
+        }
+        
+        #console .flex-row {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+        }
+        
+        #console .village-container {
+            flex: 0 1 33%;
+            margin-top: 10px
+        }
+        
+        #console .ml-5 {
+            margin-left: 5px;
+        }
+        
+        #console .mr-5 {
+            margin-right: 5px;
+        }
+        
+        .tjs-btn, #console button {
+            border: 1px solid black;
+            border-radius: 3px;
+        }
+
+        .tjs-pending {
+            background: lightblue;
+        }
+    `;
+    document.head.append(style);
+};
+const createContainer = () =&gt; {
+    $(&apos;#footer&apos;).before(`
+      &lt;div id=&quot;console&quot;/&gt;
+    `);
+};
+const updateCurrentPage = (state) =&gt; {
+    let pathname = window.location.pathname;
+    switch (pathname) {
+        case &apos;/dorf1.php&apos;: {
+            state.currentPage = CurrentPageEnum.FIELDS;
+            break;
+        }
+        case &apos;/dorf2.php&apos;: {
+            state.currentPage = CurrentPageEnum.TOWN;
+            break;
+        }
+        case &apos;/build.php&apos;: {
+            state.currentPage = CurrentPageEnum.BUILDING;
+            break;
+        }
+        case &apos;/report&apos;:
+        case &apos;/report/overview&apos;:
+        case &apos;/report/scouting&apos;: {
+            state.currentPage = CurrentPageEnum.REPORT;
+            break;
+        }
+        case &apos;/&apos;: {
+            state.currentPage = CurrentPageEnum.LOGIN;
+            break;
+        }
+        default: {
+            state.currentPage = CurrentPageEnum.UNKNOWN;
+            break;
+        }
+    }
+};
+const login = (state) =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    if (!state.username || !state.password) {
+        state.feature.debug &amp;&amp; console.log(&quot;User name or password not set&quot;);
+    }
+    $(&apos;input[name=name]&apos;).val(state.username);
+    $(&apos;input[name=password]&apos;).val(state.password);
+    yield Utils.delayClick();
+    $(&apos;button[type=submit]&apos;).trigger(&apos;click&apos;);
+});
+const updateVillageList = (state) =&gt; {
+    const villages = state.villages;
+    const villageListEle = $(&apos;.villageList .listEntry&apos;);
+    if (!villageListEle.length) {
+        state.feature.debug &amp;&amp; console.log(&quot;Village list not found&quot;);
+        return;
+    }
+    const currentVillageId = villageListEle.filter((_, ele) =&gt; ele.className.includes(&apos;active&apos;)).attr(&apos;data-did&apos;);
+    const villiageIds = [];
+    villageListEle.each((index, ele) =&gt; {
+        var _c, _d, _e;
+        const id = (_c = ele.attributes.getNamedItem(&apos;data-did&apos;)) === null || _c === void 0 ? void 0 : _c.value;
+        if (!id) {
+            return;
+        }
+        villiageIds.push(id);
+        const name = $(ele).find(&apos;.name&apos;)[0].innerText;
+        const coordinateAttributes = $(ele).find(&apos;.coordinatesGrid&apos;)[0].attributes;
+        const x = Utils.parseIntIgnoreNonNumeric(((_d = coordinateAttributes.getNamedItem(&apos;data-x&apos;)) === null || _d === void 0 ? void 0 : _d.value) || &apos;&apos;);
+        const y = Utils.parseIntIgnoreNonNumeric(((_e = coordinateAttributes.getNamedItem(&apos;data-y&apos;)) === null || _e === void 0 ? void 0 : _e.value) || &apos;&apos;);
+        const villageDefaults = {
+            id: &apos;&apos;,
+            name: &apos;&apos;,
+            position: { x: 0, y: 0 },
+            index: -1,
+            currentBuildTasks: [],
+            pendingBuildTasks: [],
+            incomingTroops: [],
+            outgoingTroops: [],
+            resources: {
+                lumber: 0,
+                clay: 0,
+                iron: 0,
+                crop: 0
+            },
+            capacity: {
+                lumber: 0,
+                clay: 0,
+                iron: 0,
+                crop: 0
+            }
+        };
+        villages[id] = Object.assign(Object.assign(Object.assign({}, villageDefaults), villages[id]), { id,
+            name,
+            index, position: { x, y } });
+    });
+    state.villages = Object.fromEntries(Object.entries(villages).filter(([id, _]) =&gt; villiageIds.includes(id)));
+    if (currentVillageId)
+        state.currentVillageId = currentVillageId;
+};
+const updateCurrentVillageStatus = (state) =&gt; {
+    const villages = state.villages;
+    const currentVillageId = state.currentVillageId;
+    let lumber = Utils.parseIntIgnoreNonNumeric($(&apos;#l1&apos;)[0].innerText);
+    let clay = Utils.parseIntIgnoreNonNumeric($(&apos;#l2&apos;)[0].innerText);
+    let iron = Utils.parseIntIgnoreNonNumeric($(&apos;#l3&apos;)[0].innerText);
+    let crop = Utils.parseIntIgnoreNonNumeric($(&apos;#l4&apos;)[0].innerText);
+    villages[currentVillageId].resources = { lumber, clay, iron, crop };
+    const warehouseCapacity = Utils.parseIntIgnoreNonNumeric($(&apos;.warehouse .capacity &gt; div&apos;).text());
+    const granaryCapacity = Utils.parseIntIgnoreNonNumeric($(&apos;.granary .capacity &gt; div&apos;).text());
+    villages[currentVillageId].capacity = {
+        lumber: warehouseCapacity,
+        clay: warehouseCapacity,
+        iron: warehouseCapacity,
+        crop: granaryCapacity
+    };
+    if ([CurrentPageEnum.FIELDS, CurrentPageEnum.TOWN].includes(state.currentPage)) {
+        const currentBuildTasks = [];
+        $(&apos;.buildingList &gt; ul &gt; li&apos;).each((_, ele) =&gt; {
+            const nameAndLevelEle = $(ele).find(&apos;.name&apos;).contents();
+            const name = $(nameAndLevelEle[0]).text().trim();
+            const level = $(nameAndLevelEle[1]).text().trim();
+            const timer = $(ele).find(&apos;.timer&apos;).text();
+            const timerParts = timer.split(&quot;:&quot;);
+            const finishTime = Utils.addToDate(new Date(), Utils.parseIntIgnoreNonNumeric(timerParts[0]), Utils.parseIntIgnoreNonNumeric(timerParts[1]), Utils.parseIntIgnoreNonNumeric(timerParts[2]));
+            currentBuildTasks.push({
+                name,
+                level,
+                finishTime
+            });
+        });
+        villages[currentVillageId].currentBuildTasks = currentBuildTasks;
+    }
+    if (state.currentPage === CurrentPageEnum.FIELDS) {
+        const incomingTroops = [];
+        const outgoingTroops = [];
+        $(&apos;#movements tr&apos;).each((_, ele) =&gt; {
+            var _c;
+            const typeEle = $(ele).find(&apos;.typ img&apos;);
+            if (!typeEle.length)
+                return;
+            const type = (_c = typeEle[0].attributes.getNamedItem(&apos;class&apos;)) === null || _c === void 0 ? void 0 : _c.value;
+            const count = Utils.parseIntIgnoreNonNumeric($(ele).find(&apos;.mov&apos;).text());
+            const timer = $(ele).find(&apos;.timer&apos;).text();
+            const timerParts = timer.split(&quot;:&quot;);
+            const time = Utils.addToDate(new Date(), Utils.parseIntIgnoreNonNumeric(timerParts[0]), Utils.parseIntIgnoreNonNumeric(timerParts[1]), Utils.parseIntIgnoreNonNumeric(timerParts[2]));
+            switch (type) {
+                case &apos;def1&apos;:
+                    incomingTroops.push({
+                        type: TroopMovementType.REINFORCE,
+                        count,
+                        time
+                    });
+                    break;
+                case &apos;hero_on_adventure&apos;:
+                    outgoingTroops.push({
+                        type: TroopMovementType.ADVENTURE,
+                        count,
+                        time
+                    });
+                    break;
+                case &apos;att2&apos;:
+                    outgoingTroops.push({
+                        type: TroopMovementType.ATTACK,
+                        count,
+                        time
+                    });
+                    break;
+                case &apos;att1&apos;:
+                case &apos;att3&apos;:
+                    incomingTroops.push({
+                        type: TroopMovementType.ATTACK,
+                        count,
+                        time
+                    });
+                    break;
+            }
+        });
+        villages[currentVillageId].incomingTroops = incomingTroops;
+        villages[currentVillageId].outgoingTroops = outgoingTroops;
+        villages[currentVillageId].lastUpdatedTime = new Date();
+    }
+    state.villages = villages;
+};
+const alertAttack = (state, village, attackTime) =&gt; {
+    const villages = state.villages;
+    if (!state.telegramChatId || !state.telegramToken) {
+        state.feature.debug &amp;&amp; console.log(&quot;Telegram chat id or token not set&quot;);
+        return;
+    }
+    if (village) {
+        if (!village.attackAlertBackoff || new Date(village.attackAlertBackoff) &lt; new Date()) {
+            state.feature.debug &amp;&amp; console.log(`Send alert for attack at village ${village.name}`);
+            village.attackAlertBackoff = Utils.addToDate(new Date(), 0, 5, 0);
+            state.villages = villages;
+            fetch(`https://api.telegram.org/bot${state.telegramToken}/sendMessage?chat_id=${state.telegramChatId}&amp;text=Village ${village.name} under attack ${attackTime &amp;&amp; `at ${Utils.formatDate(attackTime)}`}`);
+        }
+        else {
+            state.feature.debug &amp;&amp; console.log(`Not alerting attack due to backoff at ${Utils.formatDate(village.attackAlertBackoff)}`);
+        }
+    }
+    else {
+        fetch(`https://api.telegram.org/bot${state.telegramToken}/sendMessage?chat_id=${state.telegramChatId}&amp;text=Village is under attack`);
+        state.alertedPlusIncomingAttack = true;
+    }
+};
+const checkIncomingAttack = (state) =&gt; {
+    const villages = state.villages;
+    const village = villages[state.currentVillageId];
+    const attack = village.incomingTroops.find(e =&gt; e.type === TroopMovementType.ATTACK);
+    if (attack) {
+        alertAttack(state, village, attack.time);
+    }
+    const plusNoAttack = $(&apos;.sidebar #sidebarBoxVillagelist .content .villageList .listEntry:not(.attack) .iconAndNameWrapper svg.attack&apos;).filter((_, attack) =&gt; $(attack).css(&apos;visibility&apos;) === &apos;hidden&apos;);
+    if (plusNoAttack.length !== Object.keys(villages).length &amp;&amp; !state.alertedPlusIncomingAttack) {
+        alertAttack(state);
+    }
+    else if (plusNoAttack.length === Object.keys(villages).length &amp;&amp; state.alertedPlusIncomingAttack) {
+        state.alertedPlusIncomingAttack = false;
+    }
+};
+const alertEmptyBuildQueue = (state) =&gt; {
+    const villages = state.villages;
+    const village = villages[state.currentVillageId];
+    if (!village.currentBuildTasks.length) {
+        if (!state.telegramChatId || !state.telegramToken) {
+            state.feature.debug &amp;&amp; console.log(&quot;Telegram chat id or token not set&quot;);
+            return;
+        }
+        if (!village.emptyBuildQueueAlertBackoff || new Date(village.emptyBuildQueueAlertBackoff) &lt; new Date()) {
+            state.feature.debug &amp;&amp; console.log(`Send alert for attack at village ${village.name}`);
+            village.emptyBuildQueueAlertBackoff = Utils.addToDate(new Date(), 0, 5, 0);
+            state.villages = villages;
+            fetch(`https://api.telegram.org/bot${state.telegramToken}/sendMessage?chat_id=${state.telegramChatId}&amp;text=Village ${village.name} build queue is empty`);
+        }
+        else {
+            state.feature.debug &amp;&amp; console.log(`Not alerting empty build queue due to backoff at ${Utils.formatDate(village.emptyBuildQueueAlertBackoff)}`);
+        }
+    }
+};
+const alertResourceCapacityFull = (state) =&gt; {
+    const villages = state.villages;
+    const village = villages[state.currentVillageId];
+    let fullResourceType = &apos;&apos;;
+    if (village.resources.lumber === village.capacity.lumber) {
+        fullResourceType = &apos;lumber&apos;;
+    }
+    if (village.resources.clay === village.capacity.clay) {
+        fullResourceType = &apos;clay&apos;;
+    }
+    if (village.resources.iron === village.capacity.iron) {
+        fullResourceType = &apos;iron&apos;;
+    }
+    if (village.resources.crop === village.capacity.crop) {
+        fullResourceType = &apos;crop&apos;;
+    }
+    if (fullResourceType) {
+        if (!state.telegramChatId || !state.telegramToken) {
+            state.feature.debug &amp;&amp; console.log(&quot;Telegram chat id or token not set&quot;);
+            return;
+        }
+        if (!village.resourceCapacityFullAlertBackoff || new Date(village.resourceCapacityFullAlertBackoff) &lt; new Date()) {
+            state.feature.debug &amp;&amp; console.log(`Send alert for capacity full for ${fullResourceType} at village ${village.name}`);
+            village.resourceCapacityFullAlertBackoff = Utils.addToDate(new Date(), 0, 5, 0);
+            state.villages = villages;
+            fetch(`https://api.telegram.org/bot${state.telegramToken}/sendMessage?chat_id=${state.telegramChatId}&amp;text=Village ${village.name} ${fullResourceType} is at capacity`);
+        }
+        else {
+            state.feature.debug &amp;&amp; console.log(`Not alerting capacity full due to backoff at ${Utils.formatDate(village.resourceCapacityFullAlertBackoff)}`);
+        }
+    }
+};
+const build = (state) =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    // Try building in current village
+    const villages = state.villages;
+    const village = villages[state.currentVillageId];
+    if (village.pendingBuildTasks.length &gt; 0) {
+        const task = village.pendingBuildTasks[0];
+        if (village.currentBuildTasks.length &lt; 2
+            &amp;&amp; [CurrentPageEnum.FIELDS, CurrentPageEnum.TOWN].includes(state.currentPage)
+            &amp;&amp; Utils.isSufficientResources(task.resources, village.resources)) {
+            const success = yield Navigation.goToBuilding(state, task.aid, task.gid, CurrentActionEnum.BUILD);
+            if (!success) {
+                if (state.currentPage === CurrentPageEnum.FIELDS)
+                    yield Navigation.goToTown(state, CurrentActionEnum.BUILD);
+                else
+                    yield Navigation.goToFields(state, CurrentActionEnum.BUILD);
+            }
+            return;
+        }
+        const params = new URLSearchParams(window.location.search);
+        const aid = params.get(&apos;id&apos;);
+        const gid = params.get(&apos;gid&apos;);
+        if (state.currentPage === CurrentPageEnum.BUILDING
+            &amp;&amp; aid === `${task.aid}`
+            &amp;&amp; (gid === `${task.gid}` || task.gid === -1)) {
+            // Prevent infinite loop due to mismatch in resources requirements
+            const resourceRequirementEle = $(&apos;#contract .value&apos;);
+            if (!resourceRequirementEle.length) {
+                return;
+            }
+            const lumber = Utils.parseIntIgnoreNonNumeric(resourceRequirementEle[0].innerText);
+            const clay = Utils.parseIntIgnoreNonNumeric(resourceRequirementEle[1].innerText);
+            const iron = Utils.parseIntIgnoreNonNumeric(resourceRequirementEle[2].innerText);
+            const crop = Utils.parseIntIgnoreNonNumeric(resourceRequirementEle[3].innerText);
+            village.pendingBuildTasks[0].resources = { lumber, clay, iron, crop };
+            state.villages = villages;
+            const bulidButton = $(&apos;.section1 &gt; button.green&apos;);
+            if (bulidButton.length) {
+                yield Utils.delayClick();
+                state.currentAction = CurrentActionEnum.IDLE;
+                village.pendingBuildTasks.splice(0, 1);
+                state.villages = villages;
+                bulidButton.trigger(&apos;click&apos;);
+                return;
+            }
+        }
+    }
+    // Check if need to build in another village
+    const nextVillageIdToBuild = Object.entries(state.villages)
+        .filter(([_, village]) =&gt; village.pendingBuildTasks.length &gt; 0
+        &amp;&amp; village.currentBuildTasks.filter(task =&gt; new Date(task.finishTime) &gt; new Date()).length &lt; 2
+        &amp;&amp; Utils.isSufficientResources(village.pendingBuildTasks[0].resources, village.resources))
+        .map(([id, _]) =&gt; id)
+        .find(_ =&gt; true);
+    if (nextVillageIdToBuild) {
+        yield Navigation.goToVillage(state, nextVillageIdToBuild, CurrentActionEnum.NAVIGATE_TO_FIELDS);
+    }
+    else {
+        state.feature.debug &amp;&amp; console.log(&quot;Nothing to build in other villages&quot;);
+        state.currentAction = CurrentActionEnum.IDLE;
+    }
+});
+const scout = (state) =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    if (new Date(state.nextScoutTime) &lt; new Date()) {
+        const params = new URLSearchParams(window.location.search);
+        if (state.currentPage === CurrentPageEnum.BUILDING &amp;&amp; params.get(&apos;id&apos;) === &apos;39&apos; &amp;&amp; params.get(&apos;gid&apos;) === &apos;16&apos; &amp;&amp; params.get(&apos;tt&apos;) === &apos;99&apos;) {
+            const startButtonEle = $(&apos;.startButton[value=Start]&apos;).filter((_, button) =&gt; {
+                return $(button).parent().parent().find(&apos;.listName&apos;).find(&apos;span&apos;).text() === &quot;Scout&quot;;
+            });
+            for (let i = 0; i &lt; startButtonEle.length; i++) {
+                yield Utils.delayClick();
+                startButtonEle[i].click();
+            }
+            state.nextScoutTime = Utils.addToDate(new Date(), 0, Utils.randInt(30, 40), 0);
+            yield Navigation.goToFields(state, CurrentActionEnum.IDLE);
+            return;
+        }
+        else if (state.currentPage === CurrentPageEnum.BUILDING &amp;&amp; params.get(&apos;id&apos;) === &apos;39&apos; &amp;&amp; params.get(&apos;gid&apos;) === &apos;16&apos; &amp;&amp; params.get(&apos;tt&apos;) !== &apos;99&apos;) {
+            yield Utils.delayClick();
+            $(&apos;a[href=&quot;/build.php?id=39&amp;gid=16&amp;tt=99&quot;]&apos;)[0].click();
+            return;
+        }
+        else if (state.currentPage === CurrentPageEnum.TOWN) {
+            yield Navigation.goToBuilding(state, 39, 16, CurrentActionEnum.SCOUT);
+            return;
+        }
+        else {
+            yield Navigation.goToTown(state, CurrentActionEnum.SCOUT);
+            return;
+        }
+    }
+});
+const farm = (state) =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    if (new Date(state.nextFarmTime) &lt; new Date()) {
+        const params = new URLSearchParams(window.location.search);
+        if (state.currentPage === CurrentPageEnum.BUILDING &amp;&amp; params.get(&apos;id&apos;) === &apos;39&apos; &amp;&amp; params.get(&apos;gid&apos;) === &apos;16&apos; &amp;&amp; params.get(&apos;tt&apos;) === &apos;99&apos;) {
+            const startButtonEle = $(&apos;.startButton[value=Start]&apos;).filter((_, button) =&gt; {
+                return $(button).parent().parent().find(&apos;.listName&apos;).find(&apos;span&apos;).text() !== &quot;Scout&quot;;
+            });
+            for (let i = 0; i &lt; startButtonEle.length; i++) {
+                yield Utils.delayClick();
+                startButtonEle[i].click();
+            }
+            state.nextFarmTime = Utils.addToDate(new Date(), 0, Utils.randInt(30, 40), 0);
+            yield Navigation.goToFields(state, CurrentActionEnum.IDLE);
+            return;
+        }
+        else if (state.currentPage === CurrentPageEnum.BUILDING &amp;&amp; params.get(&apos;id&apos;) === &apos;39&apos; &amp;&amp; params.get(&apos;gid&apos;) === &apos;16&apos; &amp;&amp; params.get(&apos;tt&apos;) !== &apos;99&apos;) {
+            yield Utils.delayClick();
+            $(&apos;a[href=&quot;/build.php?id=39&amp;gid=16&amp;tt=99&quot;]&apos;)[0].click();
+            return;
+        }
+        else if (state.currentPage === CurrentPageEnum.TOWN) {
+            yield Navigation.goToBuilding(state, 39, 16, CurrentActionEnum.FARM);
+            return;
+        }
+        else {
+            yield Navigation.goToTown(state, CurrentActionEnum.FARM);
+            return;
+        }
+    }
+});
+const executeCustomFarm = (state, idx) =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    var _c;
+    const params = new URLSearchParams(window.location.search);
+    const villages = state.villages;
+    const village = villages[state.currentVillageId];
+    const customFarm = (_c = village.customFarms) === null || _c === void 0 ? void 0 : _c[idx];
+    if (customFarm) {
+        if (state.currentPage === CurrentPageEnum.BUILDING &amp;&amp; params.get(&apos;id&apos;) === &apos;39&apos; &amp;&amp; params.get(&apos;gid&apos;) === &apos;16&apos; &amp;&amp; params.get(&apos;tt&apos;) !== &apos;2&apos;) {
+            yield Utils.delayClick();
+            $(&apos;a[href=&quot;/build.php?id=39&amp;gid=16&amp;tt=2&quot;]&apos;)[0].click();
+            return;
+        }
+        else if (state.currentPage === CurrentPageEnum.BUILDING &amp;&amp; params.get(&apos;gid&apos;) === &apos;16&apos; &amp;&amp; params.get(&apos;tt&apos;) === &apos;2&apos;) {
+            yield Utils.delayClick();
+            const sendTroopButton = $(&quot;#ok&quot;);
+            const confirmButton = $(&quot;#checksum&quot;);
+            if (sendTroopButton.length &gt; 0) {
+                Object.keys(customFarm.troops).forEach(troopKey =&gt; {
+                    if (customFarm.troops[troopKey]) {
+                        state.feature.debug &amp;&amp; (console.log(&quot;Troop Key: &quot;, troopKey));
+                        const troopInputEle = $(`input[name=&quot;${troopKey}&quot;]`);
+                        troopInputEle[0].click();
+                        troopInputEle.val(customFarm.troops[troopKey]);
+                    }
+                });
+                $(&quot;#xCoordInput&quot;).val(customFarm.position.x);
+                $(&quot;#yCoordInput&quot;).val(customFarm.position.y);
+                $(&quot;#build &gt; div &gt; form &gt; div.option &gt; label:nth-child(5) &gt; input&quot;)[0].click();
+                yield Utils.delayClick();
+                sendTroopButton[0].click();
+            }
+            else if (confirmButton.length &gt; 0) {
+                yield Utils.delayClick();
+                confirmButton[0].click();
+            }
+            return;
+        }
+        else if (state.currentPage === CurrentPageEnum.BUILDING &amp;&amp; state.currentAction === CurrentActionEnum.CUSTOM_FARM
+            &amp;&amp; params.get(&apos;gid&apos;) === &apos;16&apos; &amp;&amp; params.get(&apos;tt&apos;) === &apos;1&apos;) {
+            village.customFarms[idx].nextCustomFarmTime = Utils.addToDate(new Date(), 0, Utils.randInt(customFarm.farmIntervalMinutes.min, customFarm.farmIntervalMinutes.max), Utils.randInt(0, 59));
+            state.villages = villages;
+            yield Navigation.goToFields(state, CurrentActionEnum.IDLE);
+            return;
+        }
+        else if (state.currentPage === CurrentPageEnum.TOWN) {
+            yield Navigation.goToBuilding(state, 39, 16, CurrentActionEnum.CUSTOM_FARM);
+            return;
+        }
+        else {
+            yield Navigation.goToTown(state, CurrentActionEnum.CUSTOM_FARM);
+            return;
+        }
+    }
+});
+const customFarm = (state) =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    const villages = state.villages;
+    const customFarms = villages[state.currentVillageId].customFarms || [];
+    // Check current village custom farm
+    for (const idxStr in customFarms) {
+        const idx = parseInt(idxStr);
+        const customFarm = customFarms[idx];
+        if (customFarm.nextCustomFarmTime) {
+            // @ts-ignore
+            if (new Date(customFarm.nextCustomFarmTime) &lt; new Date()) {
+                state.feature.debug &amp;&amp; console.log(&quot;Execute custom farm&quot;);
+                yield executeCustomFarm(state, idx);
+                return;
+            }
+        }
+    }
+    // Check other villages
+    const nextVillageIdToCustomFarm = Object.entries(state.villages)
+        .filter(([_, village]) =&gt; village.id !== state.currentVillageId &amp;&amp;
+        village.customFarms &amp;&amp;
+        village.customFarms.length &gt; 0 &amp;&amp;
+        village.customFarms.some(customFarm =&gt; customFarm.nextCustomFarmTime &amp;&amp; new Date(customFarm.nextCustomFarmTime) &lt; new Date())).map(([id, _]) =&gt; id)
+        .find(_ =&gt; true);
+    if (nextVillageIdToCustomFarm) {
+        state.feature.debug &amp;&amp; console.log(&quot;Go to village&quot;);
+        yield Navigation.goToVillage(state, nextVillageIdToCustomFarm, CurrentActionEnum.NAVIGATE_TO_FIELDS);
+    }
+    else {
+        state.feature.debug &amp;&amp; console.log(&quot;No custom farm required in other villages&quot;);
+        state.currentAction = CurrentActionEnum.IDLE;
+    }
+});
+const nextVillage = (state) =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    const nextRotationTime = new Date(state.nextVillageRotationTime);
+    const currentTime = new Date();
+    if (nextRotationTime &lt; new Date()) {
+        state.nextVillageRotationTime = Utils.addToDate(new Date(), 0, Utils.randInt(5, 10), 0);
+        let earliestVillageId = Object.keys(state.villages)[0];
+        Object.values(state.villages)
+            .forEach(village =&gt; {
+            var _c;
+            const earliestUpdatedTime = (_c = state.villages[earliestVillageId]) === null || _c === void 0 ? void 0 : _c.lastUpdatedTime;
+            if (!village.lastUpdatedTime || (earliestUpdatedTime &amp;&amp; village.lastUpdatedTime &lt; earliestUpdatedTime)) {
+                earliestVillageId = village.id;
+            }
+        });
+        state.feature.debug &amp;&amp; console.log(`Rotating to ${state.villages[earliestVillageId].name}`);
+        yield Navigation.goToVillage(state, earliestVillageId, CurrentActionEnum.NAVIGATE_TO_FIELDS);
+    }
+    else {
+        state.feature.debug &amp;&amp; console.log(`Not rotating, next rotation=${Utils.formatDate(nextRotationTime)}, current=${Utils.formatDate(currentTime)}`);
+    }
+});
+const handleFeatureToggle = (selector, state, key) =&gt; {
+    $(selector).on(&apos;click&apos;, () =&gt; {
+        const feature = state.feature;
+        feature[key] = !feature[key];
+        state.feature = feature;
+    });
+};
+const render = (state) =&gt; {
+    if (state.currentPage === CurrentPageEnum.BUILDING) {
+        const btn = &apos;&lt;button id=&quot;addCurrentToPendingInBuilding&quot; class=&quot;tjs-btn addCurrentToPending&quot;&gt;Add to queue&lt;/button&gt;&apos;;
+        if ($(&apos;#addCurrentToPendingInBuilding&apos;).length === 0)
+            $(&apos;.upgradeBuilding&apos;).after(btn);
+        else
+            $(&apos;#addCurrentToPendingInBuilding&apos;).replaceWith(btn);
+    }
+    const villages = state.villages;
+    const currentVillage = villages[state.currentVillageId];
+    const params = new URLSearchParams(window.location.search);
+    if (currentVillage &amp;&amp; [CurrentPageEnum.FIELDS, CurrentPageEnum.TOWN].includes(state.currentPage)) {
+        const records = currentVillage.pendingBuildTasks.reduce((group, task) =&gt; {
+            group[task.aid] = group[task.aid] || 0;
+            group[task.aid]++;
+            return group;
+        }, {});
+        const classNamePrefix = state.currentPage === CurrentPageEnum.FIELDS ? &quot;buildingSlot&quot; : &quot;aid&quot;;
+        $(&apos;.tjs-pending&apos;).remove();
+        Object.entries(records).forEach(([id, count]) =&gt; {
+            const div = `&lt;div class=&quot;tjs-pending&quot;&gt;+${count}&lt;/div&gt;`;
+            if ($(`.${classNamePrefix}${id} .tjs-pending`).length === 0) {
+                $(`.${classNamePrefix}${id} .labelLayer`).after(div);
+            }
+            else {
+                $(`.${classNamePrefix}${id} .tjs-pending`).replaceWith(div);
+            }
+        });
+    } else if (state.currentPage === CurrentPageEnum.REPORT) {
+        const cranny = Utils.parseIntIgnoreNonNumeric($(&apos;.rArea&apos;).text());
+        const resources = {};
+        resources.lumber = Utils.parseIntIgnoreNonNumeric($($(&apos;.resources&apos;).find(&apos;span.value&apos;)[0]).text()) - cranny;
+        resources.clay = Utils.parseIntIgnoreNonNumeric($($(&apos;.resources&apos;).find(&apos;span.value&apos;)[1]).text()) - cranny;
+        resources.iron = Utils.parseIntIgnoreNonNumeric($($(&apos;.resources&apos;).find(&apos;span.value&apos;)[2]).text()) - cranny;
+        resources.crop = Utils.parseIntIgnoreNonNumeric($($(&apos;.resources&apos;).find(&apos;span.value&apos;)[3]).text()) - cranny;
+        const resourcesSum = Object.values(resources).reduce((a, v) =&gt; a + v, 0)
+
+        const resourcesWithHero = {}
+        resourcesWithHero.lumber = Utils.parseIntIgnoreNonNumeric($($(&apos;.resources&apos;).find(&apos;span.value&apos;)[0]).text()) - (cranny * 0.85);
+        resourcesWithHero.clay = Utils.parseIntIgnoreNonNumeric($($(&apos;.resources&apos;).find(&apos;span.value&apos;)[1]).text()) - (cranny * 0.85);
+        resourcesWithHero.iron = Utils.parseIntIgnoreNonNumeric($($(&apos;.resources&apos;).find(&apos;span.value&apos;)[2]).text()) - (cranny * 0.85);
+        resourcesWithHero.crop = Utils.parseIntIgnoreNonNumeric($($(&apos;.resources&apos;).find(&apos;span.value&apos;)[3]).text()) - (cranny * 0.85);
+        const resourcesWithHeroSum = Object.values(resourcesWithHero).reduce((a, v) =&gt; a + v, 0)
+
+        const troops70 = `&lt;div id=&quot;troops-required-70&quot;&gt;Troops Required: ${Math.ceil(resourcesSum / 70)} | ${Math.ceil(resourcesWithHeroSum / 70)} with hero (70 per troop)&lt;/div&gt;`;
+        if ($(&apos;#troops-required-70&apos;).length === 0)
+            $(&quot;.additionalInformation&quot;).after(troops70);
+        else
+            $(&apos;#troops-required-70&apos;).replaceWith(troops70);
+        const troops50 = `&lt;div id=&quot;troops-required-50&quot;&gt;Troops Required: ${Math.ceil(resourcesSum / 50)} | ${Math.ceil(resourcesWithHeroSum / 50)} with hero (50 per troop)&lt;/div&gt;`;
+        if ($(&apos;#troops-required-50&apos;).length === 0)
+            $(&quot;.additionalInformation&quot;).after(troops50);
+        else
+            $(&apos;#troops-required-50&apos;).replaceWith(troops50);
+
+        
+        let total = 0;
+        $(&apos;.reportInfo.carry&apos;).each((_, carry) =&gt; total += parseInt($(carry).attr(&quot;alt&quot;).split(&apos;/&apos;)[0] || &apos;0&apos;));
+        const totalResources = `&lt;div id=&quot;total-res&quot;&gt;Total Resouces: ${total}&lt;/div&gt;`
+        if ($(&apos;#total-res&apos;).length === 0)
+            $(&quot;.footer&quot;).after(totalResources);
+        else
+            $(&apos;#total-res&apos;).replaceWith(totalResources);
+    }
+    $(&apos;#console&apos;).html(`
+        &lt;div class=&quot;flex-row&quot;&gt;
+            &lt;h4&gt;Console&lt;/h4&gt;
+            &lt;input id=&quot;toggleAutoLogin&quot; class=&quot;ml-5&quot; type=&quot;checkbox&quot; ${state.feature.autoLogin ? &apos;checked&apos; : &apos;&apos;}/&gt; Auto login
+            &lt;input id=&quot;toggleAutoScan&quot; class=&quot;ml-5&quot; type=&quot;checkbox&quot; ${state.feature.autoScan ? &apos;checked&apos; : &apos;&apos;}/&gt; Auto village rotation
+            &lt;input id=&quot;toggleAutoBuild&quot; class=&quot;ml-5&quot; type=&quot;checkbox&quot; ${state.feature.autoBuild ? &apos;checked&apos; : &apos;&apos;}/&gt; Auto build
+            &lt;input id=&quot;toggleAutoScout&quot; class=&quot;ml-5&quot; type=&quot;checkbox&quot; ${state.feature.autoScout ? &apos;checked&apos; : &apos;&apos;}/&gt; Auto scout
+            &lt;input id=&quot;toggleAutoFarm&quot; class=&quot;ml-5&quot; type=&quot;checkbox&quot; ${state.feature.autoFarm ? &apos;checked&apos; : &apos;&apos;}/&gt; Auto farm
+            &lt;input id=&quot;toggleAutoCustomFarm&quot; class=&quot;ml-5&quot; type=&quot;checkbox&quot; ${state.feature.autoCustomFarm ? &apos;checked&apos; : &apos;&apos;}/&gt; Auto custom farm
+            &lt;input id=&quot;toggleAlertAttack&quot; class=&quot;ml-5&quot; type=&quot;checkbox&quot; ${state.feature.alertAttack ? &apos;checked&apos; : &apos;&apos;}/&gt; Alert attack
+            &lt;input id=&quot;toggleAlertEmptyBuildQueue&quot; class=&quot;ml-5&quot; type=&quot;checkbox&quot; ${state.feature.alertEmptyBuildQueue ? &apos;checked&apos; : &apos;&apos;}/&gt; Alert empty build queue
+            &lt;input id=&quot;toggleAlertResourceCapacityFull&quot; class=&quot;ml-5&quot; type=&quot;checkbox&quot; ${state.feature.alertResourceCapacityFull ? &apos;checked&apos; : &apos;&apos;}/&gt; Alert resource capacity full
+            &lt;input id=&quot;toggleDebug&quot; class=&quot;ml-5&quot; type=&quot;checkbox&quot; ${state.feature.debug ? &apos;checked&apos; : &apos;&apos;}/&gt; Debug
+        &lt;/div&gt;
+        &lt;div&gt;
+            &lt;h4&gt;Summary (Build: ${BUILD_TIME})&lt;/h4&gt;
+            &lt;div&gt;Current Page: ${state.currentPage} (Last render: ${Utils.formatDate(new Date())})&lt;/div&gt;
+            &lt;div&gt;Current Action: ${state.currentAction}&lt;/div&gt;
+            &lt;div&gt;Next rotation: ${Utils.formatDate(state.nextVillageRotationTime)}&lt;/div&gt;
+            &lt;div&gt;Next scout: ${Utils.formatDate(state.nextScoutTime)}&lt;/div&gt;
+            &lt;div&gt;Next farm: ${Utils.formatDate(state.nextFarmTime)}&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div&gt;
+            &lt;h4&gt;Action&lt;/h4&gt;
+            ${state.currentPage === CurrentPageEnum.FIELDS ? &apos;&lt;button id=&quot;addAllFields&quot;&gt;Add all fields&lt;/button&gt;&apos; : &apos;&apos;}
+        &lt;/div&gt;
+        &lt;br /&gt;
+        &lt;div class=&quot;flex-row&quot;&gt;
+            ${Object.entries(villages).map(([id, village]) =&gt; `
+                &lt;div class=&quot;village-container&quot;&gt;
+                    &lt;h4&gt;${village.name} (id: ${id}) (${village.position.x}, ${village.position.y})&lt;/h4&gt;
+                    &lt;br /&gt;
+                    &lt;div&gt;Last update: ${Utils.formatDate(village.lastUpdatedTime)}&lt;/div&gt;
+                    &lt;div&gt;Attack alert backoff: ${Utils.formatDate(village.attackAlertBackoff)}&lt;/div&gt;
+                    &lt;div&gt;Empty build queue alert backoff: ${Utils.formatDate(village.emptyBuildQueueAlertBackoff)}&lt;/div&gt;
+                    &lt;br /&gt;
+                    ${state.currentPage === CurrentPageEnum.BUILDING &amp;&amp; state.currentVillageId === village.id &amp;&amp; params.get(&apos;gid&apos;) === &apos;16&apos; &amp;&amp; params.get(&apos;tt&apos;) === &apos;2&apos; ?
+        `&lt;div class=&quot;flex-row&quot;&gt;
+                            &lt;input id=&quot;minCustomFarmMinutes&quot; style=&quot;width: 5%&quot;&gt;min&lt;/input&gt;
+                            &lt;input id=&quot;maxCustomFarmMinutes&quot; style=&quot;width: 5%&quot;&gt;max&lt;/input&gt;
+                            &lt;button id=&quot;addCurrentToCustomFarm&quot; class=&quot;ml-5&quot;&gt;Add Current&lt;/button&gt;
+                        &lt;/div&gt;`
+        : &apos;&apos;}
+                    ${(village.customFarms || []).map((customFarm, idx) =&gt; `                    
+                    &lt;div class=&quot;flex-row&quot;&gt;
+                        &lt;div&gt;Next custom farm time: ${Utils.formatDate(customFarm.nextCustomFarmTime)}&lt;/div&gt;
+                    &lt;/div&gt;
+                        &lt;div&gt;Target: (${customFarm.position.x}|${customFarm.position.y})&lt;/div&gt;
+                        &lt;div&gt;Troops: ${Object.keys(customFarm.troops).filter(key =&gt; customFarm.troops[key]).map(key =&gt; key + &quot;: &quot; + customFarm.troops[key]).join(&quot;, &quot;)}&lt;/div&gt;
+                        &lt;div&gt;Interval Range: ${customFarm.farmIntervalMinutes.min}mins - ${customFarm.farmIntervalMinutes.max}mins&lt;/div&gt;
+                        &lt;button class=&quot;removeCustomFarm&quot; village-id=&quot;${id}&quot; idx=&quot;${idx}&quot;&gt;x&lt;/button&gt;`)}
+                    &lt;br /&gt;
+                    &lt;h5&gt;Resources&lt;/h5&gt;
+                    &lt;div&gt;Lumber: ${village.resources.lumber} Clay: ${village.resources.clay} Iron: ${village.resources.iron} Crop: ${village.resources.crop}&lt;/div&gt;
+                    &lt;br /&gt;
+                    &lt;h5&gt;Current build tasks&lt;/h5&gt;
+                    ${village.currentBuildTasks.map(task =&gt; `
+                        &lt;div&gt;${task.name} ${task.level} ${Utils.formatDate(task.finishTime)}&lt;/div&gt;
+                    `).join(&apos;&apos;)}
+                    &lt;br /&gt;
+                    &lt;div class=&quot;flex-row&quot;&gt;
+                        &lt;h5&gt;Pending build tasks&lt;/h5&gt; 
+                        ${state.currentPage === CurrentPageEnum.BUILDING &amp;&amp; state.currentVillageId === village.id ? `&lt;button class=&quot;addCurrentToPending&quot; class=&quot;ml-5&quot;&gt;Add Current&lt;/button&gt;` : &apos;&apos;}
+                    &lt;/div&gt;
+                    ${village.pendingBuildTasks.map((task, i) =&gt; `
+                        &lt;div&gt;
+                            &lt;span&gt;Position: ${task.aid}&lt;/span&gt;
+                            &lt;span&gt;${GID_NAME_MAP[task.gid]}&lt;/span&gt;
+                            &lt;button class=&quot;removeFromPending&quot; village-id=&quot;${id}&quot; idx=&quot;${i}&quot;&gt;x&lt;/button&gt;
+                        &lt;/div&gt;
+                    `).join(&apos;&apos;)}
+                    &lt;br /&gt;
+                    &lt;h5&gt;Incoming Troop Movements&lt;/h5&gt;
+                    ${village.incomingTroops.map(troop =&gt; `
+                        &lt;div&gt;${troop.type} ${troop.count} ${Utils.formatDate(troop.time)}&lt;/div&gt;
+                    `).join(&apos;&apos;)}
+                    &lt;br /&gt;
+                    &lt;h5&gt;Outgoing Troop Movements&lt;/h5&gt;
+                    ${village.outgoingTroops.map(troop =&gt; `
+                        &lt;div&gt;${troop.type} ${troop.count} ${Utils.formatDate(troop.time)}&lt;/div&gt;
+                    `).join(&apos;&apos;)}
+                &lt;/div&gt;
+            `).join(&apos;&apos;)}
+        &lt;/div&gt;
+    `);
+    state.currentPage === CurrentPageEnum.BUILDING &amp;&amp; params.get(&apos;gid&apos;) === &apos;16&apos; &amp;&amp; params.get(&apos;tt&apos;) === &apos;2&apos; &amp;&amp;
+        $(&apos;#addCurrentToCustomFarm&apos;).on(&apos;click&apos;, () =&gt; {
+            const villages = state.villages;
+            let customFarm = {
+                position: {
+                    &quot;x&quot;: -999,
+                    &quot;y&quot;: -999
+                },
+                farmIntervalMinutes: {
+                    &quot;min&quot;: 999,
+                    &quot;max&quot;: 999
+                },
+                troops: {}
+            };
+            $(&quot;#troops &gt; tbody&quot;).find(&quot;td&quot;).each((column, td) =&gt; {
+                const troopInput = $(td).find(&quot;input&quot;);
+                const troopKey = troopInput.attr(&apos;name&apos;);
+                const troopCount = troopInput.val();
+                if (troopKey &amp;&amp; troopInput) {
+                    customFarm.troops[troopKey] = troopCount;
+                }
+            });
+            customFarm.position.x = parseInt($(&quot;#xCoordInput&quot;).val());
+            customFarm.position.y = parseInt($(&quot;#yCoordInput&quot;).val());
+            customFarm.farmIntervalMinutes.min = parseInt($(&quot;#minCustomFarmMinutes&quot;).val());
+            customFarm.farmIntervalMinutes.max = parseInt($(&quot;#maxCustomFarmMinutes&quot;).val());
+            customFarm.nextCustomFarmTime = new Date();
+            currentVillage.customFarms = (currentVillage.customFarms || []).concat(customFarm);
+            state.villages = villages;
+        });
+    $(&apos;.removeCustomFarm&apos;).on(&apos;click&apos;, (ele) =&gt; {
+        var _c, _d, _e;
+        const idx = (_c = ele.target.attributes.getNamedItem(&apos;idx&apos;)) === null || _c === void 0 ? void 0 : _c.value;
+        const villageId = (_d = ele.target.attributes.getNamedItem(&apos;village-id&apos;)) === null || _d === void 0 ? void 0 : _d.value;
+        if (!idx || !villageId)
+            return;
+        const villages = state.villages;
+        (_e = villages[villageId].customFarms) === null || _e === void 0 ? void 0 : _e.splice(Utils.parseIntIgnoreNonNumeric(idx), 1);
+        state.villages = villages;
+    });
+    state.currentPage === CurrentPageEnum.BUILDING &amp;&amp; $(&apos;.addCurrentToPending&apos;).on(&apos;click&apos;, () =&gt; {
+        const villages = state.villages;
+        const pendingBuildTasks = currentVillage.pendingBuildTasks;
+        const params = new URLSearchParams(window.location.search);
+        const aid = params.get(&apos;id&apos;);
+        const gid = params.get(&apos;gid&apos;);
+        if (!aid || !gid) {
+            return;
+        }
+        const resourceRequirementEle = $(&apos;#contract .value&apos;);
+        if (!resourceRequirementEle.length) {
+            return;
+        }
+        const lumber = Utils.parseIntIgnoreNonNumeric(resourceRequirementEle[0].innerText);
+        const clay = Utils.parseIntIgnoreNonNumeric(resourceRequirementEle[1].innerText);
+        const iron = Utils.parseIntIgnoreNonNumeric(resourceRequirementEle[2].innerText);
+        const crop = Utils.parseIntIgnoreNonNumeric(resourceRequirementEle[3].innerText);
+        pendingBuildTasks.push({
+            aid: Utils.parseIntIgnoreNonNumeric(aid),
+            gid: Utils.parseIntIgnoreNonNumeric(gid),
+            resources: {
+                lumber,
+                clay,
+                iron,
+                crop
+            }
+        });
+        state.villages = villages;
+    });
+    $(&apos;.removeFromPending&apos;).on(&apos;click&apos;, (ele) =&gt; {
+        var _c, _d;
+        const idx = (_c = ele.target.attributes.getNamedItem(&apos;idx&apos;)) === null || _c === void 0 ? void 0 : _c.value;
+        const villageId = (_d = ele.target.attributes.getNamedItem(&apos;village-id&apos;)) === null || _d === void 0 ? void 0 : _d.value;
+        if (!idx || !villageId)
+            return;
+        const villages = state.villages;
+        villages[villageId].pendingBuildTasks.splice(Utils.parseIntIgnoreNonNumeric(idx), 1);
+        state.villages = villages;
+    });
+    state.currentPage === CurrentPageEnum.FIELDS &amp;&amp; $(&apos;#addAllFields&apos;).on(&apos;click&apos;, (ele) =&gt; {
+        const villages = state.villages;
+        const pendingBuildTasks = currentVillage.pendingBuildTasks;
+        for (let aid = 1; aid &lt;= 18; aid++) {
+            pendingBuildTasks.push({
+                aid,
+                gid: -1,
+                resources: {
+                    lumber: 0,
+                    clay: 0,
+                    iron: 0,
+                    crop: 0
+                }
+            });
+        }
+        state.villages = villages;
+    });
+    handleFeatureToggle(&apos;#toggleAutoLogin&apos;, state, &apos;autoLogin&apos;);
+    handleFeatureToggle(&apos;#toggleAutoScan&apos;, state, &apos;autoScan&apos;);
+    handleFeatureToggle(&apos;#toggleAutoBuild&apos;, state, &apos;autoBuild&apos;);
+    handleFeatureToggle(&apos;#toggleAutoScout&apos;, state, &apos;autoScout&apos;);
+    handleFeatureToggle(&apos;#toggleAutoFarm&apos;, state, &apos;autoFarm&apos;);
+    handleFeatureToggle(&apos;#toggleAutoCustomFarm&apos;, state, &apos;autoCustomFarm&apos;);
+    handleFeatureToggle(&apos;#toggleAlertAttack&apos;, state, &apos;alertAttack&apos;);
+    handleFeatureToggle(&apos;#toggleAlertEmptyBuildQueue&apos;, state, &apos;alertEmptyBuildQueue&apos;);
+    handleFeatureToggle(&apos;#toggleAlertResourceCapacityFull&apos;, state, &apos;alertResourceCapacityFull&apos;);
+    handleFeatureToggle(&apos;#toggleDebug&apos;, state, &apos;debug&apos;);
+};
+const run = (state) =&gt; __awaiter(void 0, void 0, void 0, function* () {
+    updateCurrentPage(state);
+    while (true) {
+        if ([CurrentPageEnum.LOGIN].includes(state.currentPage) &amp;&amp; state.feature.autoLogin) {
+            state.feature.debug &amp;&amp; console.log(&quot;Attempt login&quot;);
+            yield login(state);
+        }
+        if ([CurrentPageEnum.FIELDS, CurrentPageEnum.TOWN, CurrentPageEnum.BUILDING].includes(state.currentPage)) {
+            updateVillageList(state);
+            updateCurrentVillageStatus(state);
+            if (state.feature.alertAttack) {
+                state.feature.debug &amp;&amp; console.log(&quot;Checking for attacks&quot;);
+                checkIncomingAttack(state);
+            }
+            if (state.feature.alertEmptyBuildQueue) {
+                state.feature.debug &amp;&amp; console.log(&quot;Checking empty build queue&quot;);
+                alertEmptyBuildQueue(state);
+            }
+            if (state.feature.alertResourceCapacityFull) {
+                state.feature.debug &amp;&amp; console.log(&quot;Checking resource capacity full&quot;);
+                alertResourceCapacityFull(state);
+            }
+            if ([CurrentActionEnum.IDLE, CurrentActionEnum.BUILD].includes(state.currentAction) &amp;&amp; state.feature.autoBuild) {
+                state.feature.debug &amp;&amp; console.log(&quot;Attempting build&quot;);
+                yield build(state);
+            }
+            if (CurrentActionEnum.NAVIGATE_TO_FIELDS === state.currentAction) {
+                if (state.currentPage === CurrentPageEnum.FIELDS)
+                    state.currentAction = CurrentActionEnum.IDLE;
+                else
+                    yield Navigation.goToFields(state, CurrentActionEnum.IDLE);
+            }
+            if ([CurrentActionEnum.IDLE, CurrentActionEnum.SCOUT].includes(state.currentAction)) {
+                if (state.feature.autoScout) {
+                    state.feature.debug &amp;&amp; console.log(&quot;Attempting scout&quot;);
+                    yield scout(state);
+                }
+                else {
+                    state.currentAction = CurrentActionEnum.IDLE;
+                }
+            }
+            if ([CurrentActionEnum.IDLE, CurrentActionEnum.FARM].includes(state.currentAction)) {
+                if (state.feature.autoFarm) {
+                    state.feature.debug &amp;&amp; console.log(&quot;Attempting farm&quot;);
+                    yield farm(state);
+                }
+                else {
+                    state.currentAction = CurrentActionEnum.IDLE;
+                }
+            }
+            if ([CurrentActionEnum.IDLE, CurrentActionEnum.CUSTOM_FARM].includes(state.currentAction)) {
+                if (state.feature.autoCustomFarm) {
+                    state.feature.debug &amp;&amp; console.log(&quot;Attempting custom farm&quot;);
+                    yield customFarm(state);
+                }
+                else {
+                    state.currentAction = CurrentActionEnum.IDLE;
+                }
+            }
+            if (state.currentAction === CurrentActionEnum.IDLE &amp;&amp; state.feature.autoScan) {
+                state.feature.debug &amp;&amp; console.log(&quot;Try next village&quot;);
+                yield nextVillage(state);
+            }
+        }
+        state.feature.debug &amp;&amp; console.log(`Awaiting ${RUN_INTERVAL}ms`);
+        yield Utils.sleep(RUN_INTERVAL);
+    }
+});
+const initialize = () =&gt; {
+    const handler = new StateHandler();
+    const state = new Proxy(StateHandler.INITIAL_STATE, handler);
+    handler.setCallback(() =&gt; render(state));
+    createStyle();
+    createContainer();
+    render(state);
+    run(state);
+};
+initialize();</pre>
+</body>
+</html>
